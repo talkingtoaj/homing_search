@@ -11,6 +11,8 @@ RandomSearch has the advantage of being managable to a timeframe of the develope
 
 Homing Search seeks to bring together the best of both of these two approaches and to improve upon them by adding adaptation based on the results discovered so far.
 
+The library is written to be compatible with multiple Machine Learning Libaries (e.g. Keras, Sci-kit Learn, Pytorch), however to minimize required dependencies, each libary will have its own forked package.
+
 ## Features
 * You provide a time-limit within which it is guaranteed to finish.
 * If the search area is small enough, it will perform an exhaustive grid search in approximately the same time as a GridSearch. There is no reason NOT to choose Homing Search in preference to GridSearch.
@@ -22,13 +24,36 @@ Homing Search seeks to bring together the best of both of these two approaches a
 Install Homing Search from PyPI
 
 ```
-$ pip install homing_search
+$ pip install homing-search-keras
 ```
 
 To run your first example:
 
+Write a build_fn that takes a combination of parameters as inputs and a compiled model as output
+* build (**kwargs)
+
+
 ```
-# TODO: Provide an example using a toy dataset!
+params = {
+    'layer1_dim':[800, 2000, 4000], 
+    'layer2_dim':[100,300,500], 
+    'layer1_dropout':[0.1, 0.3, 0.5], 
+    'layer2_dropout':[0.1, 0.3, 0.5],
+    'activation':['relu', 'tanh', 'softplus', 'elu'], 
+    'optimizer':['Adagrad','SGD','RMSprop','adam', 'Adadelta'], 
+    'learning_rate':[0.1, 0.01], 
+    'batch_size': [64, 128, 256, 512],
+}    
+repeats = 2 # number of times to repeat each parameter option to get an average score
+epochs = 200
+time_limit = 30 # will optimize search to end no later than 30 minutes
+NN_builder # a function that 
+
+from homing_search import HomingSearchKeras
+
+hsk = HomingSearchKeras(build_fn=build_fn, data=pandas_df, label='price', batch_size=256, save_tf_logs=False)
+hsk.start(params, repeats, epochs, time_limit)
+
 ```
 
 ## Contributing

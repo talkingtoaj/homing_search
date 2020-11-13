@@ -2,7 +2,7 @@ from sklearn.model_selection import train_test_split
 from pandas import DataFrame
 import tensorflow as tf
 from tensorflow.keras.optimizers import schedules
-from .utils import add_to_log, blank_log, moving_average, sort_dict_keys_alphabetically, remove_nan_results, unique_pairs
+from .utils import add_to_log, moving_average
 
 class AbstractAdaptor():
     def __init__(self, data, label, val_pc = 0.2):
@@ -115,6 +115,8 @@ class KerasAdaptor(AbstractAdaptor):
         return ds        
 
 class SklearnAdaptor(AbstractAdaptor):
+    # TODO: This is not complete
+    
     def convert_pandas(self):
         self.X_train = self.train_df.drop(self.y_col_name, axis=1)
         self.y_train = self.train_df[self.y_col_name].copy()

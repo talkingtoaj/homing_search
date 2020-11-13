@@ -4,8 +4,8 @@ with open("README.md", "r") as fh:
     long_description = fh.read()
 
 setuptools.setup(
-    name="homing_search",
-    version="0.0.1",
+    name="homing-search-keras",
+    version="0.0.3",
     author="Andrew de Jonge",
     author_email="talkingtoaj@hotmail.com",
     description="Smart hyperparameter optimization in Python",
@@ -15,8 +15,16 @@ setuptools.setup(
     packages=setuptools.find_packages(),
     classifiers=[
         "Programming Language :: Python :: 3",
-        "License :: OSI Approved :: 3-Clause BSD License",
+        "Development Status :: 3 - Alpha",
+        "License :: OSI Approved :: BSD License",
+        "Intended Audience :: Developers",
         "Operating System :: OS Independent",
+        "Topic :: Scientific/Engineering :: Artificial Intelligence",
     ],
     python_requires='>=3.6',
 )
+
+# To push a new Version
+# 1. Update version number above
+# 2. $ python setup.py sdist bdist_wheel
+# 3. $ python -m twine upload dist/*

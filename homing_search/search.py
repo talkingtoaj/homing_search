@@ -19,9 +19,9 @@ from .utils import add_to_log, blank_log, moving_average, sort_dict_keys_alphabe
 from .data import KerasAdaptor
 
 class HomingSearchKeras():
-    def __init__(self, build_obj, data, label, batch_size, save_tf_logs):
+    def __init__(self, build_fn, data, label, batch_size, save_tf_logs):
         self.batch_size = batch_size
-        self.build_obj = build_obj
+        self.build_fn = build_fn
         self.interface = KerasAdaptor(data, label, save_tf_logs)
         self.interface.prepare_data(batch_size)
 
@@ -60,8 +60,7 @@ class HomingSearchKeras():
             if len(options) == 0:
                 # TODO: run final test for results
                 break
-            results = self.fit_all_options(options)
-            self.all_results.update(results)
+            self.fit_all_options(options)
             self.determine_new_param_range()
             add_to_log(f"\nnew param range:\n {(self.new_params)}\n")
             if self.final_params_reached():
@@ -101,15 +100,12 @@ class HomingSearchKeras():
         parameter_option = dict(sorted(parameter_option.items()))
         add_to_log(f"attempting combination:\n{parameter_option}\n")
         o = parameter_option
-        try:
-            batch_size = o.pop('batch_size')
-        except KeyError:
-            batch_size = self.batch_size
+        batch_size = o.get('batch_size',self.batch_size)
         scores = []
         for i in range(self.repeats):
             # need to rebuild model each time, or weights perpetuate from previous attempt            
             score = self.interface.fit(
-                    model = self.build_obj.build(**o),
+                    model = self.build_fn(**o),
                     metric = 'val_mean_absolute_percentage_error',
                     epochs = self.epochs,
                     batch_size = batch_size,
@@ -261,3 +257,46 @@ class HomingSearchKeras():
         for idx in clone_idxs:
             del refined_list[idx]
         return refined_list
+
+    def fit(self, model, metric, batch_size, learning_rate, epochs, save_best=False):
+        # re-batch data
+        self.hsearch.prepare_data(batch_size) 
+        train_ds = self.hsearch.train_ds
+        self.train_ds = train_ds
+
+
+        lr_schedule = schedules.ExponentialDecay(
+            initial_learning_rate=learning_rate,
+            decay_steps=10000,
+            decay_rate=0.95)
+        callbacks = [
+            tf.keras.callbacks.EarlyStopping(patience=7, min_delta=1e-2),
+            tf.keras.callbacks.ReduceLROnPlateau(patience=3),
+            tf.keras.callbacks.LearningRateScheduler(schedule=lr_schedule),
+            tf.keras.callbacks.TerminateOnNaN(),
+            ]
+        if save_best:
+            callbacks.append(
+                tf.keras.callbacks.ModelCheckpoint(
+                    filepath='/saved_models',
+                    save_weights_only=True,
+                    monitor='val_loss',
+                    mode='auto',
+                    verbose=0,
+                    save_best_only=True)
+            )
+        if self.save_tf_logs:
+            log_dir = "logs/fit/"
+            tensorboard_callback = tf.keras.callbacks.TensorBoard(log_dir=log_dir)
+            callbacks += [tensorboard_callback]
+
+        history = None
+        for i in range(2):
+            sub_epochs = int(epochs/3)
+            if i == 1:
+                sub_epochs *= 2
+            history = model.fit(self.train_ds, validation_data=self.val_ds, epochs=sub_epochs, batch_size=batch_size, verbose=1, callbacks=[callbacks])
+            if history.history[metric][-1] > 90:
+                print(f"Performing poorly, breaking early")
+                break                
+        return history        
