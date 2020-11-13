@@ -1,11 +1,11 @@
 import setuptools
-
+from . import __version__
 with open("README.md", "r") as fh:
     long_description = fh.read()
 
 setuptools.setup(
     name="homing-search-keras",
-    version="0.0.3",
+    version=__version__,
     author="Andrew de Jonge",
     author_email="talkingtoaj@hotmail.com",
     description="Smart hyperparameter optimization in Python",

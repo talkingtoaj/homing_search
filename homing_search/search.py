@@ -21,6 +21,7 @@ from .data import KerasAdaptor
 class HomingSearchKeras():
     def __init__(self, build_fn, data, label, batch_size, save_tf_logs):
         self.batch_size = batch_size
+        self.save_tf_logs = save_tf_logs 
         self.build_fn = build_fn
         self.interface = KerasAdaptor(data, label, save_tf_logs)
         self.interface.prepare_data(batch_size)
@@ -260,9 +261,9 @@ class HomingSearchKeras():
 
     def fit(self, model, metric, batch_size, learning_rate, epochs, save_best=False):
         # re-batch data
-        self.hsearch.prepare_data(batch_size) 
-        train_ds = self.hsearch.train_ds
-        self.train_ds = train_ds
+        self.interface.prepare_data(batch_size) 
+        self.train_ds = self.interface.train_ds
+        self.val_ds = self.interface.val_ds
 
 
         lr_schedule = schedules.ExponentialDecay(
@@ -278,7 +279,7 @@ class HomingSearchKeras():
         if save_best:
             callbacks.append(
                 tf.keras.callbacks.ModelCheckpoint(
-                    filepath='/saved_models',
+                    filepath='saved_models',
                     save_weights_only=True,
                     monitor='val_loss',
                     mode='auto',

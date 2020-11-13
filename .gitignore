@@ -2,3 +2,5 @@ build/*
 dist/*
 homing_search_keras.egg-info/*
 homing_search.egg-info/*
+homing_search/__pycache__/*
+__pycache__/*
