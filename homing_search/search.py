@@ -16,19 +16,16 @@ import random
 import time
 import math
 from .utils import add_to_log, blank_log, moving_average, sort_dict_keys_alphabetically, remove_nan_results, unique_pairs
-from .data import KerasAdaptor, SklearnAdaptor
+from .data import KerasAdaptor
 
 class HomingSearchKeras():
-    def __init__(self, **kwargs):
-        self.build_obj = kwargs['build_obj']
-        if kwargs['ml_library'] in ['keras', 'sklearn']:
-            if kwargs['ml_library'] == 'keras':
-                self.interface = KerasAdaptor(**kwargs)
-            elif kwargs['ml_library'] == 'sklearn':
-                self.interface = SklearnAdaptor(**kwargs)
-        self.interface.prepare_data()
+    def __init__(self, build_obj, data, label, batch_size, save_tf_logs):
+        self.batch_size = batch_size
+        self.build_obj = build_obj
+        self.interface = KerasAdaptor(data, label, save_tf_logs)
+        self.interface.prepare_data(batch_size)
 
-    def start(self, params:Dict[List], repeats=2, epochs=100, time_limit=5):
+    def start(self, params:Dict[str,List], repeats=2, epochs=100, time_limit=5):
         """ 
             Starts homing search 
 
@@ -99,18 +96,23 @@ class HomingSearchKeras():
             )
         self.all_results.update(results)
 
-    def fit_option(self, parameter_option, save_best=False) -> dict[float:Any]:
+    def fit_option(self, parameter_option, save_best=False) -> Dict[float,Any]:
         """ compiles a model for parameter_option, trains and reports the performance metric """
         parameter_option = dict(sorted(parameter_option.items()))
         add_to_log(f"attempting combination:\n{parameter_option}\n")
         o = parameter_option
+        try:
+            batch_size = o.pop('batch_size')
+        except KeyError:
+            batch_size = self.batch_size
         scores = []
         for i in range(self.repeats):
             # need to rebuild model each time, or weights perpetuate from previous attempt            
             score = self.interface.fit(
                     model = self.build_obj.build(**o),
                     metric = 'val_mean_absolute_percentage_error',
-                    batch_size = o['batch_size'],
+                    epochs = self.epochs,
+                    batch_size = batch_size,
                     learning_rate = o['learning_rate'],
                     save_best = save_best,
                 )
@@ -178,7 +180,7 @@ class HomingSearchKeras():
         new_params = dict(sorted(new_params.items()))
         self.new_params = new_params
 
-    def unique_param_values(self, result_set: List[Tuple[float,dict]]) -> dict[str:list]:
+    def unique_param_values(self, result_set: List[Tuple[float,dict]]) -> Dict[str,list]:
         param_range = {}        
         for score, params in result_set:
             for param_name, param_value in params.items():

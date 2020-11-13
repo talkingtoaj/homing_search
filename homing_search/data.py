@@ -3,7 +3,6 @@ from pandas import DataFrame
 import tensorflow as tf
 from tensorflow.keras.optimizers import schedules
 from .utils import add_to_log, blank_log, moving_average, sort_dict_keys_alphabetically, remove_nan_results, unique_pairs
-from .data import KerasAdaptor, SklearnAdaptor
 
 class AbstractAdaptor():
     def __init__(self, data, label, val_pc = 0.2):
@@ -37,20 +36,19 @@ class AbstractAdaptor():
         # return metrics
         raise NotImplemented
 
-    def sub_epochs(self, fraction) -> int:
-        return round(self.epochs*fraction)
-
 class KerasAdaptor(AbstractAdaptor):
-    def __init__(self, save_tf_logs=False):
-        super().__init__()        
+    def __init__(self, data, label, save_tf_logs=False):
+        super().__init__(data, label)        
         self.save_tf_logs = save_tf_logs
-
+        self.early_performance = []
+        
     def convert_pandas(self, batch_size):
         self.train_ds = self.df_to_dataset(self.train_df, batch_size=batch_size, label=self.label)
-        self.val_ds = self.df_to_dataset(self.test_df, batch_size=batch_size, label=self.label)
+        self.val_ds = self.df_to_dataset(self.val_df, batch_size=batch_size, label=self.label)
 
-    def fit(self, model, metric, batch_size=256, learning_rate=0.1, callbacks = [], save_best=False):
+    def fit(self, model, metric, epochs, batch_size=256, learning_rate=0.1, callbacks = [], save_best=False):
         super().prepare_data(batch_size)
+        self.epochs = epochs,
         # run native fit
         lr_schedule = schedules.ExponentialDecay(
             initial_learning_rate=learning_rate,
@@ -81,12 +79,12 @@ class KerasAdaptor(AbstractAdaptor):
         # we will stop after a 1/3rd of total epochs to determine whether this model is performing so poorly
         # as to justify an early abort
         history = None
-        for epochs in [self.sub_epochs(1/3), self.sub_epochs(2/3)]:
+        for epochs in [round(epochs*.33), round(epochs*.66)]:
             history = model.fit(
                 self.train_ds, 
                 validation_data=self.val_ds, 
                 epochs=epochs, 
-                batch_size=self.batch_size, 
+                batch_size=batch_size, 
                 verbose=1, 
                 callbacks=[callbacks]
             )
@@ -98,6 +96,7 @@ class KerasAdaptor(AbstractAdaptor):
                     add_to_log("Performing poorly, discontinuing")
                     break                
         # return metrics
+        self.history = history
         return self.history.history[metric][-1]
 
     @staticmethod

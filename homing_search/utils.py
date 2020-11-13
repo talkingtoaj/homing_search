@@ -1,3 +1,5 @@
+from typing import List
+
 def add_to_log(text, test_fname='test_data'):
     with open(test_fname, "a+") as write_file:
         write_file.write(text)
