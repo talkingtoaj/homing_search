@@ -31,7 +31,6 @@ class AbstractAdaptor():
         raise NotImplemented
 
     def fit(self, batch_size=256):
-        # super().prepare_data(batch_size)
         # run native fit
         # return metrics
         raise NotImplemented
@@ -48,7 +47,7 @@ class KerasAdaptor(AbstractAdaptor):
 
     def fit(self, model, metric, epochs, batch_size=256, learning_rate=0.1, callbacks = [], save_best=False):
         super().prepare_data(batch_size)
-        self.epochs = epochs,
+        self.epochs = epochs
         # run native fit
         lr_schedule = schedules.ExponentialDecay(
             initial_learning_rate=learning_rate,
@@ -64,7 +63,7 @@ class KerasAdaptor(AbstractAdaptor):
         if save_best:
             callbacks.append(
                 tf.keras.callbacks.ModelCheckpoint(
-                    filepath='/saved_models',
+                    filepath='saved_models/s',
                     save_weights_only=True,
                     monitor='val_loss',
                     mode='auto',
@@ -96,6 +95,7 @@ class KerasAdaptor(AbstractAdaptor):
                     add_to_log("Performing poorly, discontinuing")
                     break                
         # return metrics
+        self.model = model
         self.history = history
         return self.history.history[metric][-1]
 

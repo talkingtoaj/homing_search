@@ -104,7 +104,7 @@ class HomingSearchKeras():
         batch_size = o.get('batch_size',self.batch_size)
         scores = []
         for i in range(self.repeats):
-            # need to rebuild model each time, or weights perpetuate from previous attempt            
+            # need to rebuild model each time, or weights perpetuate from previous attempt 
             score = self.interface.fit(
                     model = self.build_fn(**o),
                     metric = 'val_mean_absolute_percentage_error',
@@ -129,7 +129,9 @@ class HomingSearchKeras():
         new_params = {}
         for key,value_list in unique_param_values.items():
             _type = type(value_list[0])
-            if _type in [int, float]:
+            # only create ranges if stored in a set instead of a list
+            _rangeable = isinstance(old_params[key], set) and _type in [int, float]
+            if _rangeable:
                 old_range = max(old_params[key]) - min(old_params[key])
                 new_range = old_range*0.3
                 _mean = sum(value_list)/len(value_list)
@@ -154,9 +156,9 @@ class HomingSearchKeras():
                         new_params[key] = [_mid]
                     else:
                         if _mid == _min or _mid == _max:
-                            new_params[key] = [_min, _max]
+                            new_params[key] = {_min, _max} # stored as set so rangeable next time
                         else:
-                            new_params[key] = [_min, _mid, _max]
+                            new_params[key] = {_min, _mid, _max} # stored as set so rangeable next time
                     # if we are stuck in a loop, repeating the same values
                     if old_params[key] == new_params[key]:
                         # then only include the best value(s) found
@@ -168,12 +170,15 @@ class HomingSearchKeras():
                 """
                 random.shuffle(value_list)
                 unique_values = list(set(value_list))
-                value_list = value_list[:len(unique_values) * 3]
-                for value in unique_values:
-                    # ensure every value is represented at least once
-                    if value not in value_list:
-                        value_list.append(value)                
-                new_params[key] = value_list 
+                if len(unique_values) == 1:
+                    new_params[key] = [value_list[0]]
+                else:
+                    value_list = value_list[:len(unique_values) * 3]
+                    for value in unique_values:
+                        # ensure every value is represented at least once
+                        if value not in value_list:
+                            value_list.append(value)                
+                    new_params[key] = value_list 
         new_params = dict(sorted(new_params.items()))
         self.new_params = new_params
 
@@ -226,7 +231,7 @@ class HomingSearchKeras():
         for i in range(max_selections):
             option = {}
             for key,value_list in self.new_params.items():
-                option[key] = random.choices(value_list)[0]
+                option[key] = random.choices(list(value_list))[0]
             options.append(option)
             add_essential_params(option)        
         return options
@@ -258,46 +263,3 @@ class HomingSearchKeras():
         for idx in clone_idxs:
             del refined_list[idx]
         return refined_list
-
-    def fit(self, model, metric, batch_size, learning_rate, epochs, save_best=False):
-        # re-batch data
-        self.interface.prepare_data(batch_size) 
-        self.train_ds = self.interface.train_ds
-        self.val_ds = self.interface.val_ds
-
-
-        lr_schedule = schedules.ExponentialDecay(
-            initial_learning_rate=learning_rate,
-            decay_steps=10000,
-            decay_rate=0.95)
-        callbacks = [
-            tf.keras.callbacks.EarlyStopping(patience=7, min_delta=1e-2),
-            tf.keras.callbacks.ReduceLROnPlateau(patience=3),
-            tf.keras.callbacks.LearningRateScheduler(schedule=lr_schedule),
-            tf.keras.callbacks.TerminateOnNaN(),
-            ]
-        if save_best:
-            callbacks.append(
-                tf.keras.callbacks.ModelCheckpoint(
-                    filepath='saved_models',
-                    save_weights_only=True,
-                    monitor='val_loss',
-                    mode='auto',
-                    verbose=0,
-                    save_best_only=True)
-            )
-        if self.save_tf_logs:
-            log_dir = "logs/fit/"
-            tensorboard_callback = tf.keras.callbacks.TensorBoard(log_dir=log_dir)
-            callbacks += [tensorboard_callback]
-
-        history = None
-        for i in range(2):
-            sub_epochs = int(epochs/3)
-            if i == 1:
-                sub_epochs *= 2
-            history = model.fit(self.train_ds, validation_data=self.val_ds, epochs=sub_epochs, batch_size=batch_size, verbose=1, callbacks=[callbacks])
-            if history.history[metric][-1] > 90:
-                print(f"Performing poorly, breaking early")
-                break                
-        return history        
