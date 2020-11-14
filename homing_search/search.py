@@ -66,7 +66,7 @@ class HomingSearchKeras():
             add_to_log(f"\nnew param range:\n {(self.new_params)}\n")
             if self.final_params_reached():
                 break
-        self.present_findings()
+        return self.present_findings()
 
     def calc_round_finish_time(self, fraction_of_total_per_round=0.33):
         self.round_alloted_time = (self.finish_time - time.time()) * fraction_of_total_per_round
@@ -77,6 +77,7 @@ class HomingSearchKeras():
         add_to_log(f"\n\nTop {top_num} results are:\n")
         for i in range(top_num):
             add_to_log(f"i: {sorted_results[i]}\n")  
+        return sorted_results[0][1]             
 
     def fit_all_options(self, options:List[dict]):
         round_finish_time = self.round_alloted_time + time.time()
@@ -88,9 +89,9 @@ class HomingSearchKeras():
                     break
                 remaining_time = round_finish_time - time.time()
                 pc = (1-remaining_time/self.round_alloted_time)*100
-                add_to_log(f"time remaining: {round((remaining_time)/60)} minutes. {pc:.0f}% progress - attempting param combination: {parameter_option}\n")
+                add_to_log(f"time remaining: {round((remaining_time)/60)} minutes. {pc:.0f}% progress \n")
             else:                        
-                add_to_log(f"{i+1} of {len(options)} - attempting param combination: {parameter_option}\n")
+                add_to_log(f"{i+1} of {len(options)}\n")
             results.update(
                 self.fit_option(parameter_option, save_best=False)
             )
