@@ -19,11 +19,11 @@ from .utils import add_to_log, blank_log, moving_average, sort_dict_keys_alphabe
 from .data import KerasAdaptor
 
 class HomingSearchKeras():
-    def __init__(self, build_fn, data, label, batch_size, save_tf_logs):
+    def __init__(self, build_fn, data, label, batch_size, save_tf_logs, searching_mode):
         self.batch_size = batch_size
         self.save_tf_logs = save_tf_logs 
         self.build_fn = build_fn
-        self.interface = KerasAdaptor(data, label, save_tf_logs)
+        self.interface = KerasAdaptor(data=data, label=label, save_tf_logs=save_tf_logs, searching_mode=searching_mode)
         self.interface.prepare_data(batch_size)
 
     def start(self, params:Dict[str,List], repeats=2, epochs=100, time_limit=5):

@@ -3,6 +3,7 @@ from pandas import DataFrame
 import tensorflow as tf
 from tensorflow.keras.optimizers import schedules
 from .utils import add_to_log, moving_average
+from statistics import median
 
 class AbstractAdaptor():
     def __init__(self, data, label, val_pc = 0.2):
@@ -36,9 +37,11 @@ class AbstractAdaptor():
         raise NotImplemented
 
 class KerasAdaptor(AbstractAdaptor):
-    def __init__(self, data, label, save_tf_logs=False):
+    def __init__(self, data, label, save_tf_logs=False, searching_mode=True):
+        """ searching_mode gives up more easily, set True if doing HomingSearch, set False if making model for production predictions """
         super().__init__(data, label)        
         self.save_tf_logs = save_tf_logs
+        self.searching_mode = searching_mode
         self.early_performance = []
         
     def convert_pandas(self, batch_size):
@@ -54,9 +57,12 @@ class KerasAdaptor(AbstractAdaptor):
             decay_steps=10000,
             decay_rate=0.95)
         if not callbacks:
+            es_patience = 7 if self.searching_mode else 15
+            red_patience = 3 if self.searching_mode else 6
+            
             callbacks = [
-                tf.keras.callbacks.EarlyStopping(patience=7, min_delta=1e-2),
-                tf.keras.callbacks.ReduceLROnPlateau(patience=3),
+                tf.keras.callbacks.EarlyStopping(patience=es_patience, min_delta=1e-2),
+                tf.keras.callbacks.ReduceLROnPlateau(patience=red_patience),
                 tf.keras.callbacks.LearningRateScheduler(schedule=lr_schedule),
                 tf.keras.callbacks.TerminateOnNaN(),
                 ]
@@ -90,7 +96,7 @@ class KerasAdaptor(AbstractAdaptor):
             score = history.history['val_mean_absolute_percentage_error'][-1]
             self.early_performance += [score]
             if len(self.early_performance) > 10:
-                benchmark = moving_average(self.early_performance)
+                benchmark = median(self.early_performance) # median ignore crazy excessive outliers
                 if score > benchmark:
                     add_to_log("Performing poorly, discontinuing")
                     break                
