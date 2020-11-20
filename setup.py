@@ -1,5 +1,5 @@
 import setuptools
-from . import __version__
+from homing_search import __version__
 with open("README.md", "r") as fh:
     long_description = fh.read()
 
@@ -25,6 +25,6 @@ setuptools.setup(
 )
 
 # To push a new Version
-# 1. Update version number above
+# 1. Update version number in __init__.py file
 # 2. $ python setup.py sdist bdist_wheel
 # 3. $ python -m twine upload dist/*
